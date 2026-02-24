@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DoD Warning Banner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a2e;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .banner {
+            max-width: 800px;
+            background-color: #16213e;
+            border: 2px solid #e94560;
+            border-radius: 8px;
+            padding: 30px;
+        }
+        h1 {
+            color: #e94560;
+            text-align: center;
+            margin-top: 0;
+        }
+        .warning-text {
+            line-height: 1.6;
+            text-align: justify;
+        }
+        .consent-section {
+            margin-top: 20px;
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid #e94560;
+        }
+        .btn {
+            background-color: #e94560;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        .btn:hover {
+            background-color: #ff6b6b;
+        }
+        .btn-secondary {
+            background-color: #4a4a6a;
+        }
+    </style>
+</head>
+<body>
+    <div class="banner">
+        <h1>NOTICE AND CONSENT</h1>
+        <div class="warning-text">
+            <p>You are accessing a U.S. Government (USG) Information System (IS) that is provided for USG-authorized use only.</p>
+
+            <p>By using this IS (which includes any device attached to this IS), you consent to the following conditions:</p>
+
+            <ul>
+                <li>The USG routinely intercepts and monitors communications on this IS for purposes including, but not limited to, penetration testing, COMSEC monitoring, network operations and defense, personnel misconduct (PM), law enforcement (LE), and counterintelligence (CI) investigations.</li>
+
+                <li>At any time, the USG may inspect and seize data stored on this IS.</li>
+
+                <li>Communications using, or data stored on, this IS are not private, are subject to routine monitoring, interception, and search, and may be disclosed or used for any USG-authorized purpose.</li>
+
+                <li>This IS includes security measures (e.g., authentication and access controls) to protect USG interests--not for your personal benefit or privacy.</li>
+
+                <li>Notwithstanding the above, using this IS does not constitute consent to PM, LE or CI investigative searching or monitoring of the content of privileged communications, or work product, related to personal representation or services by attorneys, psychotherapists, or clergy, and their assistants. Such communications and work product are private and confidential. See User Agreement for details.</li>
+            </ul>
+
+            <p><strong>UNAUTHORIZED ACCESS TO THIS SYSTEM IS PROHIBITED.</strong></p>
+        </div>
+
+        <div class="consent-section">
+            <p>By proceeding, you acknowledge that you have read and consent to these terms.</p>
+            <button class="btn" onclick="window.location.href='/'">I Accept</button>
+            <button class="btn btn-secondary" onclick="window.close(); window.location.href='about:blank';">I Decline</button>
+        </div>
+    </div>
+</body>
+</html>
