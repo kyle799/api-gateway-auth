@@ -88,7 +88,6 @@ services:
     networks:
       - gateway-net
     restart: unless-stopped
-    read_only: true
     tmpfs:
       - /tmp:mode=1777,size=64m
       - /usr/local/apisix/logs:mode=1777,size=64m
@@ -199,7 +198,7 @@ services:
   # Identity & Access Management (FIPS-capable)
   # For full FIPS: use registry.redhat.io/rhbk/keycloak-rhel9:24 with subscription
   keycloak:
-    image: quay.io/keycloak/keycloak:24.0
+    image: quay.io/keycloak/keycloak:21.1
     container_name: keycloak
     user: "1000:1000"
     command: start --optimized --https-certificate-file=/opt/keycloak/certs/tls.crt --https-certificate-key-file=/opt/keycloak/certs/tls.key

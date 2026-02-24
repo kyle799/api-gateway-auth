@@ -251,7 +251,7 @@ trivy image registry.access.redhat.com/ubi9/nginx-124
 trivy image apache/apisix:3.8.0-debian
 trivy image apache/apisix-dashboard:3.0.1-alpine
 trivy image bitnami/etcd:3.5
-trivy image quay.io/keycloak/keycloak:24.0
+trivy image quay.io/keycloak/keycloak:21.1
 trivy image postgres:16-alpine
 
 # Using Grype

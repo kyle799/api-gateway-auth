@@ -16,7 +16,7 @@ IMAGES=(
     "apache/apisix:3.8.0-debian|apache/apisix:3.8.0-debian"
     "apache/apisix-dashboard:3.0.1-alpine|apache/apisix-dashboard:3.0.1-alpine"
     "quay.io/coreos/etcd:v3.5.17|coreos/etcd:v3.5.17"
-    "quay.io/keycloak/keycloak:24.0|keycloak/keycloak:24.0"
+    "quay.io/keycloak/keycloak:21.1|keycloak/keycloak:24.0"
     "postgres:16-alpine|library/postgres:16-alpine"
 )
 
@@ -74,7 +74,7 @@ registry.access.redhat.com/ubi9/nginx-124|ubi9/nginx-124
 apache/apisix:3.8.0-debian|apache/apisix:3.8.0-debian
 apache/apisix-dashboard:3.0.1-alpine|apache/apisix-dashboard:3.0.1-alpine
 quay.io/coreos/etcd:v3.5.17|coreos/etcd:v3.5.17
-quay.io/keycloak/keycloak:24.0|keycloak/keycloak:24.0
+quay.io/keycloak/keycloak:21.1|keycloak/keycloak:24.0
 postgres:16-alpine|library/postgres:16-alpine
 MAPEOF
 
