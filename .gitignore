@@ -28,3 +28,7 @@ logs/
 # Temporary files
 tmp/
 temp/
+
+# Exported images for dark site
+images/
+*.tar
