@@ -7,6 +7,10 @@ nginx/certs/*.crt
 nginx/certs/*.key
 nginx/certs/*.pem
 !nginx/certs/.gitkeep
+keycloak/certs/*.crt
+keycloak/certs/*.key
+keycloak/certs/*.pem
+!keycloak/certs/.gitkeep
 
 # Database data (if mounted locally)
 data/
@@ -32,3 +36,7 @@ temp/
 # Exported images for dark site
 images/
 *.tar
+
+# Generated registry-specific compose files
+docker-compose.registry.yml
+docker-compose.hardened.registry.yml
