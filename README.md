@@ -30,11 +30,11 @@ Security infrastructure should be **transparent and auditable**. When your organ
 
 ```
                     ┌─────────────────────────────────────────────┐
-                    │              Security Boundary               │
+                    │             Security Boundary               │
                     │                                             │
-┌──────────┐       │  ┌─────────┐     ┌─────────┐     ┌────────┐ │
-│  Client  │──────────│  Nginx  │────▶│  Kong   │────▶│ Backend│ │
-└──────────┘       │  │  (TLS)  │     │  (GW)   │     │Services│ │
+┌──────────┐        │  ┌─────────┐     ┌─────────┐     ┌────────┐ │
+│  Client  │────────│  │  Nginx  │────▶│  Kong   │────▶│ Backend│ │
+└──────────┘        │  │  (TLS)  │     │  (GW)   │     │Services│ │
                     │  └─────────┘     └────┬────┘     └────────┘ │
                     │                       │                     │
                     │                 ┌─────▼─────┐               │
@@ -111,7 +111,7 @@ For environments without internet access:
 ./load-images.sh registry.internal:5000
 ```
 
-If pushing to a private registry, update `docker-compose.yml` image references:
+When pushing to a private registry, update `docker-compose.yml` image copy pasta references:
 
 ```yaml
 image: registry.internal:5000/library/nginx:alpine
