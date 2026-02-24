@@ -34,7 +34,7 @@ Security infrastructure should be **transparent and auditable**. When your organ
                     │             Security Boundary               │
                     │                                             │
 ┌──────────┐        │  ┌─────────┐     ┌─────────┐     ┌────────┐ │
-│  Client  │───────────│  Nginx  │────▶│ APISIX  │────▶│ Backend│ │
+│  Client  │───────────│  Nginx  │───▶│ APISIX  │────▶│ Backend│ │
 └──────────┘        │  │  (TLS)  │     │  (GW)   │     │Services│ │
                     │  └─────────┘     └────┬────┘     └────────┘ │
                     │                       │                     │
