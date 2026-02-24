@@ -199,8 +199,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:19.0
     container_name: keycloak
-    user: "1000:1000"
-    command: start --optimized --https-certificate-file=/opt/keycloak/certs/tls.crt --https-certificate-key-file=/opt/keycloak/certs/tls.key
+    command: start-dev
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
@@ -208,21 +207,12 @@ services:
       KC_DB_PASSWORD: ${KC_DB_PASSWORD:-keycloak}
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-      # Security settings
-      KC_HTTPS_PROTOCOLS: "TLSv1.2,TLSv1.3"
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"
-      KC_HTTP_ENABLED: "false"
-      KC_HTTPS_PORT: "8443"
-      KC_HOSTNAME_STRICT: "true"
-      KC_HOSTNAME_STRICT_HTTPS: "true"
-      # FIPS mode (requires FIPS-enabled JDK/host)
-      # KC_FIPS_MODE: strict
       KC_LOG_LEVEL: "INFO"
     ports:
-      - "8443:8443"
+      - "8080:8080"
     volumes:
-      - ./keycloak/certs:/opt/keycloak/certs:ro
       - ./keycloak/themes:/opt/keycloak/themes:ro
     depends_on:
       keycloak-db:
@@ -230,13 +220,10 @@ services:
     networks:
       - gateway-net
     restart: unless-stopped
-    read_only: true
     tmpfs:
       - /tmp:mode=1777,size=128m
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
     deploy:
       resources:
         limits:
@@ -246,7 +233,7 @@ services:
           cpus: '0.5'
           memory: 512M
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8443 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
