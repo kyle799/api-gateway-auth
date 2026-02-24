@@ -9,11 +9,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="${1:-$SCRIPT_DIR/../images}"
 
 # Images from docker-compose.yml
+# Format: "source_image|target_path"
+# target_path is the normalized path in the dark site registry
 IMAGES=(
-    "nginx:alpine"
-    "kong:3.6"
-    "postgres:16-alpine"
-    "quay.io/keycloak/keycloak:24.0"
+    "nginx:alpine|library/nginx:alpine"
+    "kong:3.6|library/kong:3.6"
+    "postgres:16-alpine|library/postgres:16-alpine"
+    "quay.io/keycloak/keycloak:24.0|keycloak/keycloak:24.0"
 )
 
 echo "=== Docker Image Export for Dark Site ==="
@@ -24,7 +26,8 @@ mkdir -p "$OUTPUT_DIR"
 
 # Pull all images
 echo "--- Pulling images ---"
-for image in "${IMAGES[@]}"; do
+for entry in "${IMAGES[@]}"; do
+    image="${entry%%|*}"
     echo "Pulling: $image"
     docker pull "$image"
 done
@@ -32,9 +35,12 @@ done
 echo ""
 echo "--- Saving images to tar files ---"
 
-for image in "${IMAGES[@]}"; do
-    # Create safe filename from image name
-    filename=$(echo "$image" | tr '/:' '_')
+for entry in "${IMAGES[@]}"; do
+    image="${entry%%|*}"
+    target="${entry##*|}"
+
+    # Create safe filename from target path
+    filename=$(echo "$target" | tr '/:' '_')
     tarfile="$OUTPUT_DIR/${filename}.tar"
 
     echo "Saving: $image -> $tarfile"
@@ -52,22 +58,38 @@ Host: $(hostname)
 Images included:
 EOF
 
-for image in "${IMAGES[@]}"; do
-    filename=$(echo "$image" | tr '/:' '_')
+for entry in "${IMAGES[@]}"; do
+    image="${entry%%|*}"
+    target="${entry##*|}"
+    filename=$(echo "$target" | tr '/:' '_')
     size=$(du -h "$OUTPUT_DIR/${filename}.tar" | cut -f1)
-    echo "  $image ($size)" >> "$OUTPUT_DIR/manifest.txt"
+    echo "  $image -> $target ($size)" >> "$OUTPUT_DIR/manifest.txt"
 done
+
+# Create image mapping file for load script
+cat > "$OUTPUT_DIR/image-map.txt" << 'MAPEOF'
+nginx:alpine|library/nginx:alpine
+kong:3.6|library/kong:3.6
+postgres:16-alpine|library/postgres:16-alpine
+quay.io/keycloak/keycloak:24.0|keycloak/keycloak:24.0
+MAPEOF
 
 # Create load script for dark site
 cat > "$OUTPUT_DIR/load-images.sh" << 'EOF'
 #!/bin/bash
 #
-# Load Docker images on dark site
+# Load Docker images on dark site and optionally push to registry
+#
+# Usage:
+#   ./load-images.sh                    # Just load images locally
+#   ./load-images.sh registry.local     # Load and push to registry
+#   ./load-images.sh registry.local:5000/myproject  # With port and path
 #
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REGISTRY="${1:-}"
 
 echo "=== Loading Docker Images ==="
 
@@ -80,10 +102,44 @@ done
 
 echo ""
 echo "=== Loaded Images ==="
-docker images | grep -E "nginx|kong|postgres|keycloak"
+docker images | grep -E "nginx|kong|postgres|keycloak" | head -20
 
-echo ""
-echo "Done. You can now run: docker compose up -d"
+# If registry specified, retag and push
+if [ -n "$REGISTRY" ]; then
+    echo ""
+    echo "=== Pushing to Registry: $REGISTRY ==="
+
+    # Read image mappings
+    while IFS='|' read -r source target; do
+        [ -z "$source" ] && continue
+
+        new_tag="${REGISTRY}/${target}"
+        echo ""
+        echo "Tagging: $source -> $new_tag"
+        docker tag "$source" "$new_tag"
+
+        echo "Pushing: $new_tag"
+        docker push "$new_tag"
+    done < "$SCRIPT_DIR/image-map.txt"
+
+    echo ""
+    echo "=== Push Complete ==="
+    echo ""
+    echo "Update your docker-compose.yml image references to use:"
+    echo "  ${REGISTRY}/library/nginx:alpine"
+    echo "  ${REGISTRY}/library/kong:3.6"
+    echo "  ${REGISTRY}/library/postgres:16-alpine"
+    echo "  ${REGISTRY}/keycloak/keycloak:24.0"
+else
+    echo ""
+    echo "Done. You can now run: docker compose up -d"
+    echo ""
+    echo "To push to a private registry, run:"
+    echo "  ./load-images.sh <registry-url>"
+    echo ""
+    echo "Example:"
+    echo "  ./load-images.sh darksite.local:5000"
+fi
 EOF
 
 chmod +x "$OUTPUT_DIR/load-images.sh"
@@ -97,5 +153,10 @@ ls -lh "$OUTPUT_DIR"
 echo ""
 echo "Total size: $(du -sh "$OUTPUT_DIR" | cut -f1)"
 echo ""
-echo "Transfer the '$OUTPUT_DIR' directory to your dark site,"
-echo "then run: ./load-images.sh"
+echo "Transfer the '$OUTPUT_DIR' directory to your dark site, then:"
+echo ""
+echo "  # Load images locally only:"
+echo "  ./load-images.sh"
+echo ""
+echo "  # Load and push to private registry:"
+echo "  ./load-images.sh darksite.local:5000"
