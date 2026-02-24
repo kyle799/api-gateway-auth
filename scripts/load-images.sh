@@ -42,7 +42,7 @@ declare -A IMAGE_MAP=(
     ["apache/apisix:3.8.0-debian"]="apache/apisix:3.8.0-debian"
     ["apache/apisix-dashboard:3.0.1-alpine"]="apache/apisix-dashboard:3.0.1-alpine"
     ["quay.io/coreos/etcd:v3.5.17"]="coreos/etcd:v3.5.17"
-    ["quay.io/keycloak/keycloak:21.1"]="keycloak/keycloak:24.0"
+    ["quay.io/keycloak/keycloak:19.0"]="keycloak/keycloak:24.0"
     ["postgres:16-alpine"]="library/postgres:16-alpine"
 )
 

@@ -71,7 +71,6 @@ services:
   apisix:
     image: apache/apisix:3.8.0-debian
     container_name: apisix-gateway
-    user: "1000:1000"
     environment:
       APISIX_ADMIN_KEY: ${APISIX_ADMIN_KEY:-admin}
       APISIX_VIEWER_KEY: ${APISIX_VIEWER_KEY:-viewer}
@@ -198,7 +197,7 @@ services:
   # Identity & Access Management (FIPS-capable)
   # For full FIPS: use registry.redhat.io/rhbk/keycloak-rhel9:24 with subscription
   keycloak:
-    image: quay.io/keycloak/keycloak:21.1
+    image: quay.io/keycloak/keycloak:19.0
     container_name: keycloak
     user: "1000:1000"
     command: start --optimized --https-certificate-file=/opt/keycloak/certs/tls.crt --https-certificate-key-file=/opt/keycloak/certs/tls.key
