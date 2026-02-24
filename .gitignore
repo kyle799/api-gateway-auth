@@ -1,0 +1,30 @@
+# Environment files
+.env
+*.env.local
+
+# SSL Certificates
+nginx/certs/*.crt
+nginx/certs/*.key
+nginx/certs/*.pem
+!nginx/certs/.gitkeep
+
+# Database data (if mounted locally)
+data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
