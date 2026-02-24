@@ -1,0 +1,76 @@
+#
+# APISIX Declarative Routes Configuration
+# Use with standalone mode or import via Admin API
+#
+# Reference: https://apisix.apache.org/docs/apisix/terminology/route/
+#
+
+# Example route configuration - uncomment and modify for your services
+#
+# routes:
+#   - uri: /api/v1/*
+#     name: example-api
+#     methods:
+#       - GET
+#       - POST
+#       - PUT
+#       - DELETE
+#     upstream:
+#       type: roundrobin
+#       nodes:
+#         "backend-service:8080": 1
+#     plugins:
+#       key-auth:
+#         header: "X-API-Key"
+#       limit-count:
+#         count: 100
+#         time_window: 60
+#         rejected_code: 429
+#       proxy-rewrite:
+#         regex_uri:
+#           - "^/api/v1/(.*)"
+#           - "/$1"
+#
+# upstreams:
+#   - id: 1
+#     name: backend-cluster
+#     type: roundrobin
+#     nodes:
+#       "backend-1:8080": 1
+#       "backend-2:8080": 1
+#     checks:
+#       active:
+#         type: http
+#         http_path: /health
+#         healthy:
+#           interval: 5
+#           successes: 2
+#         unhealthy:
+#           interval: 5
+#           http_failures: 3
+#
+# consumers:
+#   - username: api-consumer
+#     plugins:
+#       key-auth:
+#         key: "your-api-key-here"
+#
+# global_rules:
+#   - id: 1
+#     plugins:
+#       prometheus: {}
+#       request-id:
+#         header_name: "X-Request-ID"
+#         include_in_response: true
+#ssl:
+#  - id: 1
+#    cert: |
+#      -----BEGIN CERTIFICATE-----
+#      ... your cert here ...
+#      -----END CERTIFICATE-----
+#    key: |
+#      -----BEGIN PRIVATE KEY-----
+#      ... your key here ...
+#      -----END PRIVATE KEY-----
+#    snis:
+#      - "gateway.yourdomain.com"

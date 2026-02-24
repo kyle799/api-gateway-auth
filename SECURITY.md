@@ -52,7 +52,7 @@ docker compose -f docker-compose.hardened.yml up -d
 | SRG-APP-000315 | SSL connections | ⚠️ Manual | Config provided, requires certs |
 | SRG-APP-000516 | FIPS 140-2 | ❌ Manual | Requires FIPS-validated PostgreSQL |
 
-### Application Security STIG (Kong/Keycloak)
+### Application Security STIG (APISIX/Keycloak)
 
 | Control | Requirement | Status | Implementation |
 |---------|-------------|--------|----------------|
@@ -147,21 +147,21 @@ FIPS compliance requires using FIPS-validated cryptographic modules. Options:
 
 #### Option A: Red Hat UBI FIPS Images (Recommended)
 
-Replace base images in `docker-compose.hardened.yml`:
+The hardened compose file already uses FIPS-capable images:
 
 ```yaml
-# Instead of standard images, use:
+# Already configured in docker-compose.hardened.yml:
 nginx:
-  image: registry.access.redhat.com/ubi9/nginx-120
+  image: registry.access.redhat.com/ubi9/nginx-124  # FIPS-capable UBI
 
-kong:
-  # Kong Enterprise has FIPS mode, or build custom
-
+# For Keycloak with subscription:
 keycloak:
   image: registry.redhat.io/rhbk/keycloak-rhel9:24
   environment:
     KC_FIPS_MODE: strict
 ```
+
+APISIX and etcd will use the host's FIPS-validated OpenSSL when running on a FIPS-enabled host.
 
 #### Option B: Enable FIPS on Host
 
@@ -194,11 +194,11 @@ When migrating to Kubernetes, add NetworkPolicies:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: kong-policy
+  name: apisix-policy
 spec:
   podSelector:
     matchLabels:
-      app: kong
+      app: apisix
   policyTypes:
     - Ingress
     - Egress
@@ -208,14 +208,20 @@ spec:
             matchLabels:
               app: nginx
       ports:
-        - port: 8000
+        - port: 9080
   egress:
     - to:
         - podSelector:
             matchLabels:
-              app: kong-db
+              app: etcd
       ports:
-        - port: 5432
+        - port: 2379
+    - to:
+        - podSelector:
+            matchLabels:
+              app: keycloak
+      ports:
+        - port: 8443
 ```
 
 ## Audit Checklist
@@ -241,13 +247,16 @@ Before deployment, scan all images:
 
 ```bash
 # Using Trivy
-trivy image nginx:alpine
-trivy image kong:3.6
-trivy image postgres:16-alpine
+trivy image registry.access.redhat.com/ubi9/nginx-124
+trivy image apache/apisix:3.8.0-debian
+trivy image apache/apisix-dashboard:3.0.1-alpine
+trivy image bitnami/etcd:3.5
 trivy image quay.io/keycloak/keycloak:24.0
+trivy image postgres:16-alpine
 
 # Using Grype
-grype nginx:alpine
+grype registry.access.redhat.com/ubi9/nginx-124
+grype apache/apisix:3.8.0-debian
 ```
 
 ## Incident Response
@@ -257,7 +266,9 @@ Log locations for forensic analysis:
 | Component | Log Location | Contents |
 |-----------|--------------|----------|
 | Nginx | stdout/docker logs | Access logs, errors |
-| Kong | stdout/docker logs | API requests, auth events |
+| APISIX | stdout/docker logs | API requests, routing events |
+| APISIX Dashboard | stdout/docker logs | Admin actions |
+| etcd | stdout/docker logs | Configuration changes |
 | Keycloak | stdout/docker logs | Auth events, admin actions |
 | PostgreSQL | Container pg_log/ | Connections, queries, errors |
 

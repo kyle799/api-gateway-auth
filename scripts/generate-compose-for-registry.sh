@@ -32,10 +32,12 @@ echo ""
 
 # Image mappings (source -> registry path)
 declare -A IMAGES=(
-    ["nginx:alpine"]="library/nginx:alpine"
-    ["kong:3.6"]="library/kong:3.6"
-    ["postgres:16-alpine"]="library/postgres:16-alpine"
+    ["registry.access.redhat.com/ubi9/nginx-124"]="ubi9/nginx-124"
+    ["apache/apisix:3.8.0-debian"]="apache/apisix:3.8.0-debian"
+    ["apache/apisix-dashboard:3.0.1-alpine"]="apache/apisix-dashboard:3.0.1-alpine"
+    ["bitnami/etcd:3.5"]="bitnami/etcd:3.5"
     ["quay.io/keycloak/keycloak:24.0"]="keycloak/keycloak:24.0"
+    ["postgres:16-alpine"]="library/postgres:16-alpine"
 )
 
 # Function to replace images in a compose file

@@ -12,10 +12,12 @@ OUTPUT_DIR="${1:-$SCRIPT_DIR/../images}"
 # Format: "source_image|target_path"
 # target_path is the normalized path in the dark site registry
 IMAGES=(
-    "nginx:alpine|library/nginx:alpine"
-    "kong:3.6|library/kong:3.6"
-    "postgres:16-alpine|library/postgres:16-alpine"
+    "registry.access.redhat.com/ubi9/nginx-124|ubi9/nginx-124"
+    "apache/apisix:3.8.0-debian|apache/apisix:3.8.0-debian"
+    "apache/apisix-dashboard:3.0.1-alpine|apache/apisix-dashboard:3.0.1-alpine"
+    "bitnami/etcd:3.5|bitnami/etcd:3.5"
     "quay.io/keycloak/keycloak:24.0|keycloak/keycloak:24.0"
+    "postgres:16-alpine|library/postgres:16-alpine"
 )
 
 echo "=== Docker Image Export for Dark Site ==="
@@ -68,10 +70,12 @@ done
 
 # Create image mapping file for load script
 cat > "$OUTPUT_DIR/image-map.txt" << 'MAPEOF'
-nginx:alpine|library/nginx:alpine
-kong:3.6|library/kong:3.6
-postgres:16-alpine|library/postgres:16-alpine
+registry.access.redhat.com/ubi9/nginx-124|ubi9/nginx-124
+apache/apisix:3.8.0-debian|apache/apisix:3.8.0-debian
+apache/apisix-dashboard:3.0.1-alpine|apache/apisix-dashboard:3.0.1-alpine
+bitnami/etcd:3.5|bitnami/etcd:3.5
 quay.io/keycloak/keycloak:24.0|keycloak/keycloak:24.0
+postgres:16-alpine|library/postgres:16-alpine
 MAPEOF
 
 # Create load script for dark site
@@ -102,7 +106,7 @@ done
 
 echo ""
 echo "=== Loaded Images ==="
-docker images | grep -E "nginx|kong|postgres|keycloak" | head -20
+docker images | grep -E "nginx|apisix|etcd|postgres|keycloak" | head -20
 
 # If registry specified, retag and push
 if [ -n "$REGISTRY" ]; then
@@ -126,10 +130,12 @@ if [ -n "$REGISTRY" ]; then
     echo "=== Push Complete ==="
     echo ""
     echo "Update your docker-compose.yml image references to use:"
-    echo "  ${REGISTRY}/library/nginx:alpine"
-    echo "  ${REGISTRY}/library/kong:3.6"
-    echo "  ${REGISTRY}/library/postgres:16-alpine"
+    echo "  ${REGISTRY}/ubi9/nginx-124"
+    echo "  ${REGISTRY}/apache/apisix:3.8.0-debian"
+    echo "  ${REGISTRY}/apache/apisix-dashboard:3.0.1-alpine"
+    echo "  ${REGISTRY}/bitnami/etcd:3.5"
     echo "  ${REGISTRY}/keycloak/keycloak:24.0"
+    echo "  ${REGISTRY}/library/postgres:16-alpine"
 else
     echo ""
     echo "Done. You can now run: docker compose up -d"

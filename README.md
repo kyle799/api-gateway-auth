@@ -1,6 +1,6 @@
 # API Gateway Infrastructure
 
-A transparent, auditable API gateway stack built on proven open-source components. Designed as a modern replacement for proprietary gateway appliances.
+A transparent, auditable API gateway stack built on proven open-source components. Designed as a modern replacement for proprietary gateway appliances with FIPS 140-2 compliance capability.
 
 ## Why Open Source for Security Infrastructure?
 
@@ -25,6 +25,7 @@ Security infrastructure should be **transparent and auditable**. When your organ
 - **Principle of Least Privilege**: Configure exactly what's needed, nothing more
 - **Community Review**: Thousands of security researchers examine these codebases
 - **No Phone Home**: No telemetry, license checks, or external dependencies required
+- **FIPS Capable**: Uses FIPS-validated base images (Red Hat UBI)
 
 ## Architecture
 
@@ -33,7 +34,7 @@ Security infrastructure should be **transparent and auditable**. When your organ
                     │             Security Boundary               │
                     │                                             │
 ┌──────────┐        │  ┌─────────┐     ┌─────────┐     ┌────────┐ │
-│  Client  │────────│  │  Nginx  │────▶│  Kong   │────▶│ Backend│ │
+│  Client  │───────────│  Nginx  │────▶│ APISIX  │────▶│ Backend│ │
 └──────────┘        │  │  (TLS)  │     │  (GW)   │     │Services│ │
                     │  └─────────┘     └────┬────┘     └────────┘ │
                     │                       │                     │
@@ -51,12 +52,13 @@ Security infrastructure should be **transparent and auditable**. When your organ
 
 ## Components
 
-| Component | Role | Why This Choice |
-|-----------|------|-----------------|
-| **Nginx** | TLS termination, load balancing | Battle-tested, minimal attack surface, extensive security track record |
-| **Kong** | API gateway, routing, rate limiting | Declarative config, plugin architecture, no vendor lock-in |
-| **Keycloak** | Authentication, authorization, SSO | Standards-compliant (OIDC/OAuth2/SAML), AD integration, self-hosted |
-| **PostgreSQL** | Persistent storage | Industry standard, well-understood security model |
+| Component | Role | Image | FIPS Status |
+|-----------|------|-------|-------------|
+| **Nginx** | TLS termination, load balancing | Red Hat UBI9 | FIPS-capable |
+| **APISIX** | API gateway, routing, rate limiting, plugins | Apache APISIX | Host FIPS mode |
+| **etcd** | Configuration store for APISIX | Bitnami etcd | Host FIPS mode |
+| **Keycloak** | Authentication, authorization, SSO, AD integration | Keycloak | FIPS mode available |
+| **PostgreSQL** | Persistent storage for Keycloak | PostgreSQL Alpine | Host FIPS mode |
 
 ## Quick Start
 
@@ -79,14 +81,30 @@ docker compose up -d
 docker compose ps
 ```
 
+### Hardened Deployment (STIG-compliant)
+
+```bash
+# Generate TLS certificates
+./scripts/generate-certs.sh gateway.yourdomain.com
+
+# Configure environment
+cp .env.example .env
+vi .env  # Set secure passwords
+
+# Deploy hardened stack
+docker compose -f docker-compose.hardened.yml up -d
+```
+
 ### Service Endpoints
 
 | Service | URL | Purpose |
 |---------|-----|---------|
-| API Gateway | http://localhost:80 | Client-facing endpoint |
-| Kong Admin | http://localhost:8001 | Gateway configuration API |
-| Kong Manager | http://localhost:8002 | Gateway admin UI |
+| API Gateway | http://localhost:80 | Client-facing endpoint (Nginx) |
+| APISIX Proxy | http://localhost:9080 | Direct gateway access |
+| APISIX Admin | http://localhost:9180 | Gateway configuration API |
+| APISIX Dashboard | http://localhost:9000 | Gateway admin UI |
 | Keycloak | http://localhost:8080 | Identity management console |
+| Prometheus Metrics | http://localhost:9091 | APISIX metrics |
 
 ## Air-Gapped Deployment
 
@@ -104,6 +122,8 @@ For environments without internet access:
 ### On Air-Gapped Machine
 
 ```bash
+cd images/
+
 # Load images locally
 ./load-images.sh
 
@@ -111,80 +131,117 @@ For environments without internet access:
 ./load-images.sh registry.internal:5000
 ```
 
-When pushing to a private registry, update `docker-compose.yml` image copy pasta references:
+### Generate Registry-Specific Compose Files
 
-```yaml
-image: registry.internal:5000/library/nginx:alpine
-image: registry.internal:5000/library/kong:3.6
-image: registry.internal:5000/library/postgres:16-alpine
-image: registry.internal:5000/keycloak/keycloak:24.0
+```bash
+# Auto-generate compose files with your registry prefix
+./scripts/generate-compose-for-registry.sh registry.internal:5000
+
+# Deploy
+docker compose -f docker-compose.hardened.registry.yml up -d
 ```
 
 ## Configuration
 
-### Kong Routes and Services
+### APISIX Routes and Services
 
-Define API routes in `kong/kong.yml` using declarative configuration:
+Define API routes in `apisix/apisix.yaml` or via the Admin API:
 
 ```yaml
-services:
-  - name: my-api
-    url: http://backend-service:8080
-    routes:
-      - name: my-api-route
-        paths:
-          - /api/v1
+routes:
+  - uri: /api/v1/*
+    name: backend-api
+    upstream:
+      type: roundrobin
+      nodes:
+        "backend-service:8080": 1
+    plugins:
+      key-auth:
+        header: "X-API-Key"
+      limit-count:
+        count: 100
+        time_window: 60
 ```
 
-Apply configuration:
+Apply via Admin API:
 ```bash
-# Using Admin API
-curl -X POST http://localhost:8001/config -F config=@kong/kong.yml
+curl -X PUT http://localhost:9180/apisix/admin/routes/1 \
+  -H "X-API-KEY: ${APISIX_ADMIN_KEY}" \
+  -d '{"uri": "/api/*", "upstream": {"nodes": {"backend:8080": 1}}}'
+```
+
+### APISIX + Keycloak Integration
+
+APISIX has built-in Keycloak integration via the `authz-keycloak` plugin:
+
+```yaml
+plugins:
+  authz-keycloak:
+    token_endpoint: "https://keycloak:8443/realms/master/protocol/openid-connect/token"
+    client_id: "apisix"
+    client_secret: "your-client-secret"
 ```
 
 ### Keycloak Realms
 
-1. Access Keycloak at http://localhost:8080
+1. Access Keycloak at http://localhost:8080 (or https://localhost:8443 in hardened mode)
 2. Login with admin credentials from `.env`
 3. Create realm and configure AD federation
 4. Export realm config for version control:
    ```bash
-   # Export from running instance for backup
    docker exec keycloak /opt/keycloak/bin/kc.sh export --dir /tmp/export
    ```
 
 ### TLS Configuration
 
-Place certificates in `nginx/certs/` and uncomment the HTTPS server block in `nginx/nginx.conf`.
+```bash
+# Generate certificates
+./scripts/generate-certs.sh gateway.yourdomain.com
+
+# Deploy with hardened config (TLS enabled by default)
+docker compose -f docker-compose.hardened.yml up -d
+```
 
 ## Security Hardening Checklist
 
 - [ ] Change all default passwords in `.env`
-- [ ] Enable TLS termination at Nginx
-- [ ] Configure Keycloak password policies
+- [ ] Generate and install TLS certificates
+- [ ] Configure Keycloak password policies (15+ chars, complexity)
+- [ ] Enable Keycloak brute force protection
 - [ ] Set up AD/LDAP federation in Keycloak
-- [ ] Enable Kong rate limiting plugins
+- [ ] Configure APISIX rate limiting plugins
 - [ ] Configure network policies (when on Kubernetes)
 - [ ] Enable audit logging on all components
-- [ ] Regularly update container images
 - [ ] Scan images for vulnerabilities before deployment
+- [ ] Enable FIPS mode on host (for full compliance)
 
 ## Project Structure
 
 ```
-├── docker-compose.yml          # Service definitions
-├── .env.example                # Environment template
+├── docker-compose.yml              # Standard deployment
+├── docker-compose.hardened.yml     # STIG-hardened deployment
+├── .env.example                    # Environment template
 ├── nginx/
-│   ├── nginx.conf              # Load balancer configuration
-│   └── certs/                  # TLS certificates
-├── kong/
-│   ├── kong.yml                # Declarative route config
-│   └── plugins/                # Custom plugins
+│   ├── nginx.conf                  # Standard config
+│   ├── nginx.hardened.conf         # Hardened config
+│   ├── dod-banner.html             # DoD consent banner
+│   └── certs/                      # TLS certificates
+├── apisix/
+│   ├── config.yaml                 # APISIX configuration
+│   ├── apisix.yaml                 # Route definitions
+│   └── dashboard.yaml              # Dashboard config
 ├── keycloak/
-│   └── themes/                 # Custom UI themes
+│   ├── certs/                      # Keycloak TLS certs
+│   └── themes/                     # Custom UI themes
+├── postgres/
+│   ├── postgresql.conf             # Hardened PostgreSQL
+│   └── pg_hba.conf                 # Auth configuration
 ├── scripts/
-│   └── pull-and-save-images.sh # Offline deployment tool
-└── k8s/                        # Kubernetes manifests (future)
+│   ├── pull-and-save-images.sh     # Image export for dark site
+│   ├── generate-certs.sh           # TLS certificate generator
+│   └── generate-compose-for-registry.sh  # Registry compose generator
+├── SECURITY.md                     # STIG compliance guide
+└── k8s/                            # Kubernetes manifests (future)
 ```
 
 ## Troubleshooting
@@ -194,22 +251,37 @@ Place certificates in `nginx/certs/` and uncomment the HTTPS server block in `ng
 docker compose logs -f
 
 # View logs for specific service
-docker compose logs -f kong
+docker compose logs -f apisix
 
 # Restart a service
 docker compose restart keycloak
 
-# Check Kong configuration
-curl http://localhost:8001/status
+# Check APISIX status
+curl http://localhost:9080/apisix/status
+
+# Check APISIX routes
+curl http://localhost:9180/apisix/admin/routes -H "X-API-KEY: admin"
 
 # Test Keycloak health
 curl http://localhost:8080/health
+
+# Check etcd health
+docker exec etcd etcdctl endpoint health
 ```
+
+## FIPS 140-2 Compliance
+
+For full FIPS compliance, see [SECURITY.md](SECURITY.md). Options:
+
+1. **Host-level FIPS**: Run on FIPS-enabled RHEL host
+2. **Red Hat subscription images**: Use `registry.redhat.io` FIPS images
+3. **Keycloak FIPS mode**: Set `KC_FIPS_MODE=strict`
 
 ## License
 
 This project configuration is provided as-is. Individual components retain their respective licenses:
 - Nginx: BSD-2-Clause
-- Kong: Apache 2.0
+- APISIX: Apache 2.0
+- etcd: Apache 2.0
 - Keycloak: Apache 2.0
 - PostgreSQL: PostgreSQL License

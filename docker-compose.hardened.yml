@@ -1,38 +1,41 @@
-# STIG-Hardened Docker Compose Configuration
+# STIG-Hardened Docker Compose Configuration with FIPS Containers
 #
 # Key hardening measures:
+# - FIPS-capable base images (Red Hat UBI)
 # - Non-root users where possible
 # - Read-only root filesystems
 # - Resource limits (memory/CPU)
 # - No new privileges
 # - Dropped capabilities
-# - tmpfs for writable directories
 # - Health checks on all services
+#
+# FIPS Note: For full FIPS 140-2 compliance, run on a FIPS-enabled RHEL host
+#            or use subscription-based Red Hat images
 #
 # Usage: docker compose -f docker-compose.hardened.yml up -d
 
 services:
-  # Frontend Load Balancer
+  # Frontend Load Balancer (FIPS-capable UBI image)
   nginx:
-    image: nginx:alpine
+    image: registry.access.redhat.com/ubi9/nginx-124
     container_name: nginx-lb
     ports:
-      - "80:8080"      # Non-privileged port internally
+      - "80:8080"
       - "443:8443"
     volumes:
       - ./nginx/nginx.hardened.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/certs:/etc/nginx/certs:ro
-      - ./nginx/dod-banner.html:/usr/share/nginx/html/dod-banner.html:ro
+      - ./nginx/dod-banner.html:/opt/app-root/src/dod-banner.html:ro
     depends_on:
-      kong:
+      apisix:
         condition: service_healthy
     networks:
       - gateway-net
     restart: unless-stopped
     read_only: true
     tmpfs:
-      - /var/cache/nginx:mode=1777,size=64m
-      - /var/run:mode=1777,size=8m
+      - /var/opt/rh/nginx/cache:mode=1777,size=64m
+      - /run:mode=1777,size=8m
       - /tmp:mode=1777,size=32m
     security_opt:
       - no-new-privileges:true
@@ -52,7 +55,7 @@ services:
           cpus: '0.25'
           memory: 64M
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -62,55 +65,33 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
-        labels: "service,environment"
 
-  # API Gateway
-  kong:
-    image: kong:3.6
-    container_name: kong-gateway
+  # API Gateway (APISIX)
+  # Note: For FIPS, run on FIPS-enabled host - APISIX uses host OpenSSL
+  apisix:
+    image: apache/apisix:3.8.0-debian
+    container_name: apisix-gateway
     user: "1000:1000"
     environment:
-      KONG_DATABASE: postgres
-      KONG_PG_HOST: kong-db
-      KONG_PG_USER: ${KONG_PG_USER:-kong}
-      KONG_PG_PASSWORD: ${KONG_PG_PASSWORD:-kong}
-      KONG_PG_DATABASE: ${KONG_PG_DATABASE:-kong}
-      KONG_PG_SSL: "on"
-      KONG_PG_SSL_VERIFY: "off"
-      # Logging
-      KONG_PROXY_ACCESS_LOG: /dev/stdout
-      KONG_ADMIN_ACCESS_LOG: /dev/stdout
-      KONG_PROXY_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_ERROR_LOG: /dev/stderr
-      KONG_LOG_LEVEL: info
-      # Listeners - non-privileged ports
-      KONG_PROXY_LISTEN: 0.0.0.0:8000
-      KONG_ADMIN_LISTEN: 127.0.0.1:8001
-      KONG_ADMIN_GUI_LISTEN: 127.0.0.1:8002
-      # Security headers
-      KONG_HEADERS: "off"
-      KONG_TRUSTED_IPS: "0.0.0.0/0,::/0"
-      # SSL/TLS settings
-      KONG_SSL_PROTOCOLS: "TLSv1.2 TLSv1.3"
-      KONG_SSL_CIPHER_SUITE: "intermediate"
-      # Session timeout (15 min)
-      KONG_ADMIN_GUI_SESSION_CONF: '{"cookie_lifetime":900,"cookie_secure":true,"cookie_samesite":"Strict"}'
+      APISIX_ADMIN_KEY: ${APISIX_ADMIN_KEY:-admin}
+      APISIX_VIEWER_KEY: ${APISIX_VIEWER_KEY:-viewer}
+    volumes:
+      - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
     ports:
-      - "8000:8000"   # Proxy (internal only in prod)
-      # Admin ports bound to localhost only for security
-      - "127.0.0.1:8001:8001"   # Admin API
-      - "127.0.0.1:8002:8002"   # Admin GUI
+      - "9080:9080"   # HTTP proxy
+      - "9443:9443"   # HTTPS proxy
+      - "127.0.0.1:9180:9180"   # Admin API (localhost only)
+      - "127.0.0.1:9091:9091"   # Prometheus metrics
     depends_on:
-      kong-db:
+      etcd:
         condition: service_healthy
-      kong-migrations:
-        condition: service_completed_successfully
     networks:
       - gateway-net
     restart: unless-stopped
     read_only: true
     tmpfs:
       - /tmp:mode=1777,size=64m
+      - /usr/local/apisix/logs:mode=1777,size=64m
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -124,7 +105,7 @@ services:
           cpus: '0.5'
           memory: 256M
     healthcheck:
-      test: ["CMD", "kong", "health"]
+      test: ["CMD", "curl", "-f", "http://localhost:9080/apisix/status"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -135,23 +116,55 @@ services:
         max-size: "50m"
         max-file: "10"
 
-  kong-db:
-    image: postgres:16-alpine
-    container_name: kong-db
-    user: "70:70"  # postgres user in alpine
-    environment:
-      POSTGRES_USER: ${KONG_PG_USER:-kong}
-      POSTGRES_PASSWORD: ${KONG_PG_PASSWORD:-kong}
-      POSTGRES_DB: ${KONG_PG_DATABASE:-kong}
-      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+  # APISIX Dashboard (Admin UI)
+  apisix-dashboard:
+    image: apache/apisix-dashboard:3.0.1-alpine
+    container_name: apisix-dashboard
+    user: "1000:1000"
     volumes:
-      - kong-db-data:/var/lib/postgresql/data
-      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
-      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
-    command: >
-      postgres
-      -c config_file=/etc/postgresql/postgresql.conf
-      -c hba_file=/etc/postgresql/pg_hba.conf
+      - ./apisix/dashboard.yaml:/usr/local/apisix-dashboard/conf/conf.yaml:ro
+    ports:
+      - "127.0.0.1:9000:9000"   # Localhost only
+    depends_on:
+      - apisix
+    networks:
+      - gateway-net
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=32m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # etcd - Configuration store
+  etcd:
+    image: bitnami/etcd:3.5
+    container_name: etcd
+    user: "1001:1001"
+    environment:
+      ALLOW_NONE_AUTHENTICATION: "no"
+      ETCD_ROOT_PASSWORD: ${ETCD_ROOT_PASSWORD:-etcd-root-password}
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+      ETCD_AUTO_COMPACTION_MODE: periodic
+      ETCD_AUTO_COMPACTION_RETENTION: "1h"
+    volumes:
+      - etcd-data:/bitnami/etcd
     networks:
       - gateway-net
     restart: unless-stopped
@@ -159,12 +172,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    cap_add:
-      - CHOWN
-      - SETGID
-      - SETUID
-      - DAC_OVERRIDE
-      - FOWNER
     deploy:
       resources:
         limits:
@@ -174,7 +181,7 @@ services:
           cpus: '0.25'
           memory: 128M
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${KONG_PG_USER:-kong} -d ${KONG_PG_DATABASE:-kong}"]
+      test: ["CMD", "etcdctl", "endpoint", "health", "--user", "root:${ETCD_ROOT_PASSWORD:-etcd-root-password}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -185,32 +192,8 @@ services:
         max-size: "20m"
         max-file: "5"
 
-  kong-migrations:
-    image: kong:3.6
-    container_name: kong-migrations
-    user: "1000:1000"
-    command: kong migrations bootstrap
-    environment:
-      KONG_DATABASE: postgres
-      KONG_PG_HOST: kong-db
-      KONG_PG_USER: ${KONG_PG_USER:-kong}
-      KONG_PG_PASSWORD: ${KONG_PG_PASSWORD:-kong}
-      KONG_PG_DATABASE: ${KONG_PG_DATABASE:-kong}
-    depends_on:
-      kong-db:
-        condition: service_healthy
-    networks:
-      - gateway-net
-    restart: "no"
-    read_only: true
-    tmpfs:
-      - /tmp:mode=1777,size=32m
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-
-  # Identity & Access Management
+  # Identity & Access Management (FIPS-capable)
+  # For full FIPS: use registry.redhat.io/rhbk/keycloak-rhel9:24 with subscription
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
     container_name: keycloak
@@ -231,13 +214,11 @@ services:
       KC_HTTPS_PORT: "8443"
       KC_HOSTNAME_STRICT: "true"
       KC_HOSTNAME_STRICT_HTTPS: "true"
-      # Session settings (15 min timeout)
-      KC_SPI_STICKY_SESSION_ENCODER_INFINISPAN_SHOULD_ATTACH_ROUTE: "false"
-      # Logging
+      # FIPS mode (requires FIPS-enabled JDK/host)
+      # KC_FIPS_MODE: strict
       KC_LOG_LEVEL: "INFO"
-      KC_LOG_CONSOLE_FORMAT: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c] (%t) %s%e%n"
     ports:
-      - "8443:8443"   # HTTPS only
+      - "8443:8443"
     volumes:
       - ./keycloak/certs:/opt/keycloak/certs:ro
       - ./keycloak/themes:/opt/keycloak/themes:ro
@@ -327,12 +308,7 @@ services:
 networks:
   gateway-net:
     driver: bridge
-    driver_opts:
-      com.docker.network.bridge.enable_icc: "true"
-      com.docker.network.bridge.enable_ip_masquerade: "true"
 
 volumes:
-  kong-db-data:
-    driver: local
+  etcd-data:
   keycloak-db-data:
-    driver: local

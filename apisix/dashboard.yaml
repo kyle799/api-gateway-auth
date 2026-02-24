@@ -1,0 +1,25 @@
+#
+# APISIX Dashboard Configuration
+#
+
+conf:
+  listen:
+    host: 0.0.0.0
+    port: 9000
+  etcd:
+    endpoints:
+      - etcd:2379
+    prefix: "/apisix"
+  log:
+    error_log:
+      level: warn
+      file_path: /dev/stderr
+    access_log:
+      file_path: /dev/stdout
+
+authentication:
+  secret: "${DASHBOARD_SECRET:-your-secret-key-here}"
+  expire_time: 3600
+  users:
+    - username: admin
+      password: "${DASHBOARD_PASSWORD:-admin}"
