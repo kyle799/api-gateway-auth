@@ -96,7 +96,7 @@ services:
       KC_DB_PASSWORD: ${KC_DB_PASSWORD:-keycloak}
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-      KC_HEALTH_ENABLED: true
+      KC_HEALTH_ENABLED: "true"
     ports:
       - "8080:8080"
     depends_on:
