@@ -1,6 +1,5 @@
 #
 # APISIX Configuration
-# Reference: https://apisix.apache.org/docs/apisix/getting-started/
 #
 
 apisix:
@@ -11,21 +10,6 @@ apisix:
     ip: 0.0.0.0
     port: 9180
 
-  # SSL configuration
-  ssl:
-    enable: true
-    listen:
-      - port: 9443
-        enable_http2: true
-    ssl_protocols: "TLSv1.2 TLSv1.3"
-    ssl_ciphers: "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256"
-
-  # Proxy settings
-  proxy_mode: http&stream
-  stream_proxy:
-    tcp:
-      - 9100
-
 deployment:
   role: traditional
   role_traditional:
@@ -33,81 +17,41 @@ deployment:
   admin:
     admin_key:
       - name: admin
-        key: "${APISIX_ADMIN_KEY}"
+        key: edd1c9f034335f136f87ad84b625c8f1
         role: admin
-      - name: viewer
-        key: "${APISIX_VIEWER_KEY}"
-        role: viewer
     allow_admin:
       - 0.0.0.0/0
+  etcd:
+    host:
+      - "http://etcd:2379"
+    prefix: "/apisix"
+    timeout: 30
 
-etcd:
-  host:
-    - "http://etcd:2379"
-  prefix: "/apisix"
-  timeout: 30
-
-# Plugins to load
 plugins:
   - real-ip
-  - ai
   - client-control
   - proxy-control
   - request-id
-  - zipkin
-  - ext-plugin-pre-req
-  - fault-injection
-  - mocking
-  - serverless-pre-function
   - cors
   - ip-restriction
   - ua-restriction
   - referer-restriction
-  - csrf
   - uri-blocker
   - request-validation
   - openid-connect
   - authz-keycloak
-  - wolf-rbac
-  - ldap-auth
-  - hmac-auth
   - basic-auth
   - jwt-auth
   - key-auth
   - consumer-restriction
-  - forward-auth
-  - opa
-  - authz-casbin
-  - workflow
   - limit-req
   - limit-conn
   - limit-count
   - proxy-cache
-  - body-transformer
-  - proxy-mirror
   - proxy-rewrite
-  - grpc-transcode
-  - grpc-web
-  - public-api
   - prometheus
-  - datadog
   - http-logger
   - syslog
-  - tcp-logger
-  - kafka-logger
-  - rocketmq-logger
-  - udp-logger
-  - clickhouse-logger
-  - tencent-cloud-cls
-  - sls-logger
-  - file-logger
-  - loggly
-  - elasticsearch-logger
-  - google-cloud-logging
-  - splunk-hec-logging
-  - serverless-post-function
-  - ext-plugin-post-req
-  - ext-plugin-post-resp
   - response-rewrite
 
 plugin_attr:
@@ -115,6 +59,3 @@ plugin_attr:
     export_addr:
       ip: 0.0.0.0
       port: 9091
-  request-id:
-    header_name: "X-Request-ID"
-    include_in_response: true
