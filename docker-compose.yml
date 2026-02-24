@@ -52,14 +52,20 @@ services:
 
   # etcd - Configuration store for APISIX
   etcd:
-    image: bitnami/etcd:3.5
+    image: quay.io/coreos/etcd:v3.5.17
     container_name: etcd
     environment:
-      ALLOW_NONE_AUTHENTICATION: "yes"
-      ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
+      ETCD_NAME: etcd0
+      ETCD_DATA_DIR: /etcd-data
       ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
+      ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd:2380
+      ETCD_INITIAL_CLUSTER: etcd0=http://etcd:2380
+      ETCD_INITIAL_CLUSTER_TOKEN: etcd-cluster
+      ETCD_INITIAL_CLUSTER_STATE: new
     volumes:
-      - etcd-data:/bitnami/etcd
+      - etcd-data:/etcd-data
     networks:
       - gateway-net
     restart: unless-stopped

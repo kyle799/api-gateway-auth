@@ -15,7 +15,7 @@ IMAGES=(
     "registry.access.redhat.com/ubi9/nginx-124|ubi9/nginx-124"
     "apache/apisix:3.8.0-debian|apache/apisix:3.8.0-debian"
     "apache/apisix-dashboard:3.0.1-alpine|apache/apisix-dashboard:3.0.1-alpine"
-    "bitnami/etcd:3.5|bitnami/etcd:3.5"
+    "quay.io/coreos/etcd:v3.5.17|coreos/etcd:v3.5.17"
     "quay.io/keycloak/keycloak:24.0|keycloak/keycloak:24.0"
     "postgres:16-alpine|library/postgres:16-alpine"
 )
@@ -73,7 +73,7 @@ cat > "$OUTPUT_DIR/image-map.txt" << 'MAPEOF'
 registry.access.redhat.com/ubi9/nginx-124|ubi9/nginx-124
 apache/apisix:3.8.0-debian|apache/apisix:3.8.0-debian
 apache/apisix-dashboard:3.0.1-alpine|apache/apisix-dashboard:3.0.1-alpine
-bitnami/etcd:3.5|bitnami/etcd:3.5
+quay.io/coreos/etcd:v3.5.17|coreos/etcd:v3.5.17
 quay.io/keycloak/keycloak:24.0|keycloak/keycloak:24.0
 postgres:16-alpine|library/postgres:16-alpine
 MAPEOF
@@ -133,7 +133,7 @@ if [ -n "$REGISTRY" ]; then
     echo "  ${REGISTRY}/ubi9/nginx-124"
     echo "  ${REGISTRY}/apache/apisix:3.8.0-debian"
     echo "  ${REGISTRY}/apache/apisix-dashboard:3.0.1-alpine"
-    echo "  ${REGISTRY}/bitnami/etcd:3.5"
+    echo "  ${REGISTRY}/coreos/etcd:v3.5.17"
     echo "  ${REGISTRY}/keycloak/keycloak:24.0"
     echo "  ${REGISTRY}/library/postgres:16-alpine"
 else
