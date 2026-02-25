@@ -9,6 +9,68 @@ This document tracks DISA STIG compliance status and provides guidance for achie
 docker compose -f docker-compose.hardened.yml up -d
 ```
 
+## Zero Trust Security Model
+
+This architecture implements a Zero Trust security model aligned with **NIST SP 800-207**, **CISA Zero Trust Maturity Model**, and **DoD Zero Trust Reference Architecture**.
+
+### Core Tenets Implemented
+
+| Zero Trust Pillar | Implementation | Maturity Level |
+|-------------------|----------------|----------------|
+| **Identity** | Keycloak OIDC/SAML with AD federation, MFA-ready | Advanced |
+| **Device** | Certificate-based authentication capable (mTLS) | Initial |
+| **Network** | Microsegmentation via container networks, ingress control | Advanced |
+| **Application** | API gateway policy enforcement, request validation | Advanced |
+| **Data** | TLS 1.2+ encryption in transit, field-level access control | Advanced |
+| **Visibility** | Centralized logging, audit trails, Prometheus metrics | Advanced |
+| **Automation** | Declarative policy-as-code, GitOps-ready | Intermediate |
+
+### CISA Zero Trust Maturity Alignment
+
+- **Traditional** → **Initial** → **Advanced** → **Optimal**
+
+| Capability | Current State |
+|------------|---------------|
+| Identity verification | ✅ Advanced - Centralized IdP with federation |
+| Device compliance | ⚠️ Initial - Certificate support available |
+| Network segmentation | ✅ Advanced - Container isolation, policy enforcement |
+| Application access | ✅ Advanced - Per-request authorization |
+| Data protection | ✅ Advanced - Encryption, access logging |
+| Analytics | ✅ Advanced - Full audit trail, metrics |
+| Governance | ✅ Advanced - Policy-as-code, version controlled |
+
+### DoD Zero Trust Capabilities
+
+| DoD ZT Capability | Status | Notes |
+|-------------------|--------|-------|
+| User/Entity Authentication | ✅ | Keycloak with AD/LDAP integration |
+| Device Authentication | ⚠️ | mTLS capable, requires PKI setup |
+| Continuous Authorization | ✅ | Token validation on every request |
+| Dynamic Access Control | ✅ | APISIX real-time policy enforcement |
+| Software Defined Perimeter | ✅ | No implicit trust, identity-based access |
+| Data-Centric Security | ✅ | Encryption + access control at API layer |
+| Automated Response | ⚠️ | Rate limiting active, SIEM integration ready |
+
+### Policy Enforcement Points
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         ZERO TRUST BOUNDARY                         │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐               │
+│  │   VERIFY    │   │   ENFORCE   │   │   MONITOR   │               │
+│  │  (Keycloak) │──▶│  (APISIX)   │──▶│  (Logging)  │               │
+│  ├─────────────┤   ├─────────────┤   ├─────────────┤               │
+│  │ • AuthN     │   │ • AuthZ     │   │ • Audit     │               │
+│  │ • MFA       │   │ • RBAC      │   │ • Metrics   │               │
+│  │ • SSO       │   │ • Rate Limit│   │ • Alerts    │               │
+│  │ • Federation│   │ • Validation│   │ • Forensics │               │
+│  └─────────────┘   └─────────────┘   └─────────────┘               │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
 ## STIG Compliance Matrix
 
 ### Container Platform SRG

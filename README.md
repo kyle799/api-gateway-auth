@@ -27,6 +27,41 @@ Security infrastructure should be **transparent and auditable**. When your organ
 - **No Phone Home**: No telemetry, license checks, or external dependencies required
 - **FIPS Capable**: Uses FIPS-validated base images (Red Hat UBI)
 
+## Zero Trust Architecture
+
+This stack implements core Zero Trust principles as defined by NIST SP 800-207:
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Never Trust, Always Verify** | Every API request authenticated via Keycloak/OIDC before reaching backend services |
+| **Least Privilege Access** | RBAC policies enforced at gateway level; tokens scoped to minimum required permissions |
+| **Assume Breach** | Defense-in-depth with multiple security layers; each component independently hardened |
+| **Explicit Verification** | No implicit trust based on network location; identity-based access control |
+| **Microsegmentation** | Service-to-service communication isolated; network policies enforce boundaries |
+| **Continuous Validation** | Short-lived tokens with continuous re-authentication; session timeouts enforced |
+
+### Zero Trust Data Flow
+
+```
+┌────────────┐    ┌─────────────┐    ┌──────────────┐    ┌─────────────┐    ┌─────────┐
+│   Client   │───▶│   Verify    │───▶│   Enforce    │───▶│   Validate  │───▶│ Backend │
+│            │    │  Identity   │    │   Policy     │    │   Request   │    │ Service │
+└────────────┘    └─────────────┘    └──────────────┘    └─────────────┘    └─────────┘
+                   (Keycloak)         (APISIX)            (Rate Limit)
+                   - MFA/SSO          - RBAC              - Input validation
+                   - Token issue      - Route auth        - Schema enforcement
+                   - Session mgmt     - API policies      - Threat detection
+```
+
+### Key Zero Trust Capabilities
+
+- **Identity-Centric Security**: All access decisions based on verified identity, not network location
+- **Policy Decision Point (PDP)**: Centralized policy engine via APISIX plugins
+- **Policy Enforcement Point (PEP)**: Gateway enforces access control at the edge
+- **Continuous Monitoring**: Full audit trail of all API transactions
+- **Dynamic Policy Updates**: Real-time policy changes without service restart
+- **Cryptographic Identity**: mTLS capable for service-to-service authentication
+
 ## Architecture
 
 ```
